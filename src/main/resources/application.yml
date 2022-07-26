@@ -1,0 +1,23 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: guguji_take_out #应用名称，默认为项目名称
+  datasource:
+    druid:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3306/ggj?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+      username: root
+      password: 10250511biubiu
+mybatis-plus:
+  configuration:
+    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射：数据库表名：address_book-->实体类名：AddressBook
+    #表属性：user_name-->实体类属性名：userName
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID
+
+guguji:
+  path: G:\photos\
