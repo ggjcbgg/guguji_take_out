@@ -1,6 +1,5 @@
 package com.ggjcbgg.guguji.controller;
 
-
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ggjcbgg.guguji.common.R;
@@ -81,7 +80,7 @@ public class CategoryController {
     }
 
     /**
-     * 根据条件查询分类数据
+     * 根据条件查询分类数据，1是菜品分类  2是套餐分类
      * @param category
      * @return
      */
