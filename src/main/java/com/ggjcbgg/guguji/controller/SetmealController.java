@@ -1,6 +1,7 @@
 package com.ggjcbgg.guguji.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ggjcbgg.guguji.common.R;
 import com.ggjcbgg.guguji.dto.SetmealDto;
@@ -95,6 +96,105 @@ public class SetmealController {
         dtoPage.setRecords(list);
 
         return R.success(dtoPage);
+    }
+
+    /**
+     * 删除套餐
+     * @param ids
+     * @return
+     */
+    @DeleteMapping
+    public R<String> delete(@RequestParam List<Long> ids){
+        if(ids.isEmpty()){
+            return R.error("请勾选要删除的套餐");
+        }
+        log.info("ids:{}",ids);
+
+        setmealService.removeWithDish(ids);
+
+        return R.success("套餐数据删除成功");
+    }
+
+    /**
+     * 根据id查询套餐信息和菜品关联信息
+     * @param id
+     * @return
+     */
+    @GetMapping("/{id}")
+    public R<SetmealDto> get(@PathVariable Long id){
+        log.info("查询的套餐id为：{}",id);
+
+        SetmealDto setmealDto = setmealService.getByIdWithDish(id);
+
+        return R.success(setmealDto);
+
+    }
+
+    /**
+     * 修改套餐和菜品关联信息
+     * @param setmealDto
+     * @return
+     */
+    @PutMapping
+    public R<String> update(@RequestBody SetmealDto setmealDto){
+        log.info("套餐信息：{}",setmealDto);
+
+        setmealService.updateWithDish(setmealDto);
+
+        return R.success("新增套餐成功");
+    }
+
+    /**
+     * 根据id对套餐进行停售
+     * @param ids
+     * @return
+     */
+    @PostMapping("/status/0")
+    public R<String> down(@RequestParam List<Long> ids){
+        //条件构造器
+        LambdaUpdateWrapper<Setmeal> updateWrapper = new LambdaUpdateWrapper<>();
+        //添加更新条件
+        updateWrapper.in(Setmeal::getId,ids);
+        updateWrapper.set(Setmeal::getStatus,0);
+        //执行更新
+        setmealService.update(updateWrapper);
+
+        return R.success("停售成功");
+    }
+
+    /**
+     * 根据id对套餐进行启售
+     * @param ids
+     * @return
+     */
+    @PostMapping("/status/1")
+    public R<String> up(@RequestParam List<Long> ids){
+        //条件构造器
+        LambdaUpdateWrapper<Setmeal> updateWrapper = new LambdaUpdateWrapper<>();
+        //添加更新条件
+        updateWrapper.in(Setmeal::getId,ids);
+        updateWrapper.set(Setmeal::getStatus,1);
+        //执行更新
+        setmealService.update(updateWrapper);
+
+        return R.success("起售成功");
+    }
+
+    /**
+     * 根据分类id查询套餐数据
+     * @param setmeal
+     * @return
+     */
+    @GetMapping("/list")
+    public R<List<Setmeal>> list(Setmeal setmeal ){
+        //条件构造器
+        LambdaQueryWrapper<Setmeal> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(setmeal.getCategoryId()!=null ,Setmeal::getCategoryId, setmeal.getCategoryId());
+        queryWrapper.eq(setmeal.getStatus()!=null ,Setmeal::getStatus, setmeal.getStatus());
+
+        List<Setmeal> list = setmealService.list(queryWrapper);
+
+        return R.success(list);
     }
 
 }

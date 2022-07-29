@@ -1,19 +1,22 @@
 package com.ggjcbgg.guguji.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ggjcbgg.guguji.common.CustomException;
 import com.ggjcbgg.guguji.common.R;
 import com.ggjcbgg.guguji.dto.DishDto;
-import com.ggjcbgg.guguji.entity.Category;
-import com.ggjcbgg.guguji.entity.Dish;
+import com.ggjcbgg.guguji.entity.*;
 import com.ggjcbgg.guguji.service.CategoryService;
 import com.ggjcbgg.guguji.service.DishFlavorService;
 import com.ggjcbgg.guguji.service.DishService;
+import com.ggjcbgg.guguji.service.SetmealDishService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,6 +36,9 @@ public class DishController {
 
     @Autowired
     private CategoryService categoryService;//分页业务
+
+    @Autowired
+    private SetmealDishService setmealDishService;//菜品套餐业务
 
     /**
      * 新增菜品
@@ -127,8 +133,24 @@ public class DishController {
      * @param dish
      * @return
      */
+//    @GetMapping("/list")
+//    public R<List<Dish>> list(Dish dish){
+//        //构造查询条件
+//        LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(dish.getCategoryId()!=null,Dish::getCategoryId,dish.getCategoryId());
+//        //根据名称查找菜品
+//        queryWrapper.like(dish.getName()!=null,Dish::getName,dish.getName());
+//        //添加查询条件，1是查询正在售卖的(起售状态)
+//        queryWrapper.eq(Dish::getStatus,1);
+//        //添加排序条件
+//        queryWrapper.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
+//        List<Dish> list = dishService.list(queryWrapper);//执行查询
+//
+//        return R.success(list);
+//    }
+
     @GetMapping("/list")
-    public R<List<Dish>> list(Dish dish){
+    public R<List<DishDto>> list(Dish dish){
         //构造查询条件
         LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(dish.getCategoryId()!=null,Dish::getCategoryId,dish.getCategoryId());
@@ -140,7 +162,100 @@ public class DishController {
         queryWrapper.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
         List<Dish> list = dishService.list(queryWrapper);//执行查询
 
-        return R.success(list);
+        //创建DishDto对象封装口味信息
+        List<DishDto> dishDtoList = null;
+
+        dishDtoList = list.stream().map((item) -> {
+            DishDto dishDto = new DishDto();
+            //根据菜品id查询口味信息
+            LambdaQueryWrapper<DishFlavor> queryWrapper1 = new LambdaQueryWrapper<>();
+            queryWrapper1.eq(DishFlavor::getDishId, item.getId());
+            List<DishFlavor> dishFlavors = dishFlavorService.list(queryWrapper1);
+            //拷贝dish中的信息
+            BeanUtils.copyProperties(item,dishDto);
+            //设置dishDto中的口味信息
+            dishDto.setFlavors(dishFlavors);
+            return dishDto;
+        }).collect(Collectors.toList());
+
+        return R.success(dishDtoList);
+    }
+
+
+    /**
+     * 根据id对菜品进行停售
+     * @param ids
+     * @return
+     */
+    @PostMapping("/status/0")
+    public R<String> down(@RequestParam List<Long> ids){
+        //条件构造器
+        LambdaUpdateWrapper<Dish> updateWrapper = new LambdaUpdateWrapper<>();
+        //添加更新条件
+        updateWrapper.in(Dish::getId,ids);
+        updateWrapper.set(Dish::getStatus,0);
+        //执行更新
+        dishService.update(updateWrapper);
+
+        return R.success("停售成功");
+    }
+
+    /**
+     * 根据id对菜品进行启售
+     * @param ids
+     * @return
+     */
+    @PostMapping("/status/1")
+    public R<String> up(@RequestParam List<Long> ids){
+        //条件构造器
+        LambdaUpdateWrapper<Dish> updateWrapper = new LambdaUpdateWrapper<>();
+        //添加更新条件
+        updateWrapper.in(Dish::getId,ids);
+        updateWrapper.set(Dish::getStatus,1);
+        //执行更新
+        dishService.update(updateWrapper);
+
+        return R.success("起售成功");
+    }
+
+    /**
+     * 删除菜品
+     * @param ids
+     * @return
+     */
+    @DeleteMapping
+    public R<String> delete(@RequestParam List<Long> ids){
+        if(ids.isEmpty()){
+            return R.error("请勾选要删除的菜品");
+        }
+        log.info("ids:{}",ids);
+
+        //查询状态，确定是否可以删除
+        LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.in(Dish::getId,ids);
+        queryWrapper.eq(Dish::getStatus,1);
+        //查找正在售卖的菜品数量
+        int count = dishService.count(queryWrapper);
+        if(count>0) {
+            //如果不能删除，抛出一个业务异常
+            throw new CustomException("菜品正在售卖中，不能删除");
+        }
+
+        //查询套餐中是否在出售
+        LambdaQueryWrapper<SetmealDish> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        //添加查询条件
+        lambdaQueryWrapper.in(SetmealDish::getDishId,ids);
+        //查找套餐是否有该菜品
+        int count1 = setmealDishService.count(lambdaQueryWrapper);
+        if(count1>0) {
+            //如果不能删除，抛出一个业务异常
+            throw new CustomException("菜品正在套餐中，不能删除");
+        }
+
+        //如果可以删除，先删除菜品表中的数据
+        dishService.removeByIds(ids);
+
+        return R.success("菜品数据删除成功");
     }
 
 }
