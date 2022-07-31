@@ -40,7 +40,8 @@ public class UserController {
         String phone = user.getPhone();
         if(StringUtils.isNotEmpty(phone)){
             //生成随机的4位验证码
-            String code = ValidateCodeUtils.generateValidateCode(4).toString();
+            //String code = ValidateCodeUtils.generateValidateCode(4).toString();
+            String code = "1234";
             log.info("code={}",code);
 
             //调用阿里云提供的短信服务API完成发送短信
@@ -93,6 +94,18 @@ public class UserController {
         }
 
         return R.error("登录失败");
+    }
+
+    /**
+     * 用户退出登录
+     * @param session
+     * @return
+     */
+    @PostMapping("/loginout")
+    public R<String> loginout(HttpSession session){
+        //清空session
+        session.removeAttribute("user");
+        return R.success("退出登录成功");
     }
 
 }
